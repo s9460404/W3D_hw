@@ -1,0 +1,231 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<link rel=stylesheet type="css" href="hw1.css">
+<style>
+	body {
+		background-color: #fff;
+		color: #111;
+		margin: 0px;
+		overflow: hidden;
+		font-family: Monospace;
+		font-size: 20px;
+		position: absolute;
+	}
+	
+</style>
+</head>
+
+<body>
+<div id="info">
+	 press <strong>z</strong> to toggle the move<br/>
+	 press a to toggle the music
+</div>
+<audio id="sound" autoplay loop style="display:none">
+<source src="../../music/hw1/bgsound.mp3" type='audio/mp3'>
+</audio>
+
+<script src="../../js/three.min.js"></script>
+<script src="../../js/OrbitControls.js"></script>
+<script src="../../js/KeyboardState.js"></script>
+
+<script>
+// JUST A MATTER OF MrDoob's STYLE (see ppt)
+///////////////////////////////////////////////////////
+// I. GLOBAL VARS
+var clock = new THREE.Clock();
+var scene, renderer, camera;
+var cube;
+var controls, keyboard = new KeyboardState();
+var angle = 0, angle2, angle3;
+var turn = true;
+var soundturn = true;
+
+var angleInfoEle;
+
+/////////////////////////////////////////////////////
+// II. Execution order
+init();
+animate();
+
+//////////////////////////////////////////////////////
+// III. functions
+function init()
+{
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+	
+	renderer = new THREE.WebGLRenderer({antialias: true});
+	renderer.setSize (width, height);
+	document.body.appendChild (renderer.domElement);
+	
+	scene = new THREE.Scene();
+
+	var sunTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/sun.jpg' );
+	sunTexture.wrapS = sunTexture.wrapT = THREE.RepeatWrapping; 
+	sunTexture.repeat.set( 1, 1 );
+	var sunMaterial = new THREE.MeshBasicMaterial( { map: sunTexture, side: THREE.DoubleSide } );
+    sun = new THREE.Mesh(new THREE.SphereGeometry(20),sunMaterial);
+	
+	var earthTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/earth.jpg' );
+	earthTexture.wrapS = earthTexture.wrapT = THREE.RepeatWrapping; 
+	earthTexture.repeat.set( 1, 1 );
+	var earthMaterial = new THREE.MeshBasicMaterial( { map: earthTexture, side: THREE.DoubleSide } );
+    earth = new THREE.Mesh(new THREE.SphereGeometry(10),earthMaterial);
+	
+	var moonTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/moon.jpg' );
+	moonTexture.wrapS = moonTexture.wrapT = THREE.RepeatWrapping; 
+	moonTexture.repeat.set( 1, 1 );
+	var moonMaterial = new THREE.MeshBasicMaterial( { map: moonTexture, side: THREE.DoubleSide } );
+    moon = new THREE.Mesh(new THREE.SphereGeometry(3),moonMaterial);
+
+	var frontTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/front.jpg' );
+	frontTexture.wrapS = frontTexture.wrapT = THREE.RepeatWrapping; 
+	frontTexture.repeat.set( 1, 1 );
+	var frontMaterial = new THREE.MeshBasicMaterial( { map: frontTexture, side: THREE.DoubleSide } );
+	
+	earth.add(moon);
+    sun.add(earth);
+	sun.rotation.z = Math.PI / 8;
+    scene.add(sun);
+	
+	
+	var frontGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var front = new THREE.Mesh(frontGeometry, frontMaterial);
+	front.position.set (0, 0, -500);
+	scene.add(front);
+	
+	var nearTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/near.jpg' );
+	nearTexture.wrapS = nearTexture.wrapT = THREE.RepeatWrapping; 
+	nearTexture.repeat.set( 1, 1 );
+	var nearMaterial = new THREE.MeshBasicMaterial( { map: nearTexture, side: THREE.DoubleSide } );
+	
+	var nearGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var near = new THREE.Mesh(nearGeometry, nearMaterial);
+	near.position.set (0, 0, 500);
+	scene.add(near);
+	
+	var rightTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/right.jpg' );
+	rightTexture.wrapS = rightTexture.wrapT = THREE.RepeatWrapping; 
+	rightTexture.repeat.set( 1, 1 );
+	var rightMaterial = new THREE.MeshBasicMaterial( { map: rightTexture, side: THREE.DoubleSide } );
+	
+	var rightGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var right = new THREE.Mesh(rightGeometry, rightMaterial);
+	right.position.set (500, 0, 0);
+	right.rotation.y = Math.PI / 2;
+	scene.add(right);
+	
+	var leftTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/left.jpg' );
+	leftTexture.wrapS = leftTexture.wrapT = THREE.RepeatWrapping; 
+	leftTexture.repeat.set( 1, 1 );
+	var leftMaterial = new THREE.MeshBasicMaterial( { map: leftTexture, side: THREE.DoubleSide } );
+	
+	var leftGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var left = new THREE.Mesh(leftGeometry, leftMaterial);
+	left.position.set (-500, 0, 0);
+	left.rotation.y = -Math.PI / 2;
+	scene.add(left);
+	
+	var upTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/up.jpg' );
+	upTexture.wrapS = upTexture.wrapT = THREE.RepeatWrapping; 
+	upTexture.repeat.set( 1, 1 );
+	var upMaterial = new THREE.MeshBasicMaterial( { map: upTexture, side: THREE.DoubleSide } );
+	
+	var upGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var up = new THREE.Mesh(upGeometry, upMaterial);
+	up.position.set (0, 500, 0);
+	up.rotation.x = -Math.PI / 2;
+	scene.add(up);
+	
+	var downTexture = new THREE.ImageUtils.loadTexture( '../../images/hw1/down.jpg' );
+	downTexture.wrapS = downTexture.wrapT = THREE.RepeatWrapping; 
+	downTexture.repeat.set( 1, 1 );
+	var downMaterial = new THREE.MeshBasicMaterial( { map: downTexture, side: THREE.DoubleSide } );
+	
+	var downGeometry = new THREE.PlaneGeometry(1000, 1000);
+	var down = new THREE.Mesh(downGeometry, downMaterial);
+	down.position.set (0, -500, 0);
+	down.rotation.x = Math.PI / 2;
+	scene.add(down);
+	
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 2000);
+	camera.position.y = 100;
+    camera.position.z = 400;
+    scene.add(camera);
+
+	// add control here (after the camera is defined)
+	controls = new THREE.OrbitControls (camera, render.domElement);
+
+	var pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (0,300,200);
+	scene.add (pointLight);
+	
+	window.addEventListener ('resize', onWindowResize, false);
+}
+
+function toggleTurn ()
+{
+	turn = !turn;
+}
+function togglesoundTurn ()
+{
+	if(soundturn){
+		soundturn = !soundturn;
+		sound.pause();
+	}
+	else{
+		soundturn = !soundturn;
+		sound.play();
+	}
+}
+function animate()
+{
+	var dt = clock.getDelta();
+
+	earth.position.set(100 * Math.cos(angle), 0, -100 * Math.sin(angle));
+	var angle2 = angle * 12;
+    moon.position.set(20 * Math.cos(angle2), 0, -20 * Math.sin(angle2));
+	
+	if (turn) { 
+		
+		angle += dt;
+		earth.rotation.y = angle;
+		moon.rotation.y = angle2;
+	}
+	
+	
+	
+	requestAnimationFrame ( animate );  // timer callback
+	render();  // display callback
+	update();
+}
+
+function update()
+{
+	keyboard.update();
+	controls.update();
+	if ( keyboard.down("Z"))  
+		toggleTurn();         
+	if ( keyboard.down("A"))  // must use upper case!!
+		togglesoundTurn();
+		
+}
+
+function onWindowResize()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function render() {
+   
+    renderer.render(scene, camera);
+}
+
+</script>
+</body>
+
+</html>
