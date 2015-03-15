@@ -190,8 +190,8 @@ function animate()
 		var angle2 = angle * 12;
 		earth.position.set(100 * Math.cos(angle), 0, -100 * Math.sin(angle));
 		earth.rotation.y = angle*365;
-		moon.position.set(20 * Math.cos(angle2-angle), 0, -20 * Math.sin(angle2-angle));
-		moon.rotation.y = angle2 -(angle*365);
+		moon.position.set(20 * Math.cos(angle2-angle*365), 0, -20 * Math.sin(angle2-angle*365));
+		moon.rotation.y = angle2 -(angle);
 	}
 	
 	
