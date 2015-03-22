@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	canvas {
+		position: fixed;
+		top: 0;
+		left: 0;
+	}
+</style>
+</head>
+
+<body>
+<script src="../../js/three.min.js"></script>
+<script src="../../js/OrbitControls.js"></script>
+<script src="../../js/KeyboardState.js"></script>
+<audio id="open" style="display:none">
+<source src="../../music/hw2/open.wav" type='audio/wav'>
+</audio>
+<audio id="move" style="display:none">
+<source src="../../music/hw2/move.wav" type='audio/wav'>
+</audio>
+<audio id="close" style="display:none">
+<source src="../../music/hw2/close.wav" type='audio/wav'>
+</audio>
+<script>
+var raycaster;
+var scene, renderer, camera;
+var cube;
+var door, angle =0;
+var controls, keyboard = new KeyboardState();
+var mouse = new THREE.Vector2();
+init();
+animate();
+var door_state = false;
+var door_state2 = 1;
+var open, move, close;
+function door_move () 
+{
+	if(door_state == false)
+		door_state = true;
+	else if(door_state == true){
+		if(door_state2 == 1)
+			door_state2 = 2;
+		else
+			door_state2 = 1;
+	}
+}
+function init()
+{
+	open = document.getElementById ('open');
+	move = document.getElementById ('move');
+	close = document.getElementById ('close');
+	renderer = new THREE.WebGLRenderer( {antialias:true} );
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+	renderer.setSize (width, height);
+	renderer.setClearColor (0x888888);
+	
+	document.body.appendChild (renderer.domElement);
+
+	scene = new THREE.Scene();
+	
+	cube = createMesh(new THREE.BoxGeometry(120, 5, 10), "wood.jpg", "wood-bump.jpg");
+	cube.position.set (60, 2.5, -5);
+	scene.add (cube);//–åžy’ê
+	
+	cube2 = createMesh(new THREE.BoxGeometry(120, 5, 10), "wood.jpg", "wood-bump.jpg");
+	cube2.position.set (60, 162.5, -5);
+	scene.add (cube2);//–åžy’¸
+	
+	cube3 = createMesh(new THREE.BoxGeometry(10, 155, 10), "wood.jpg", "wood-bump.jpg");
+	cube3.position.set (5, 82.5, -5);
+	scene.add (cube3);//–åžy¶
+	
+	cube4 = createMesh(new THREE.BoxGeometry(10, 155, 10), "wood.jpg", "wood-bump.jpg");
+	cube4.position.set (115, 82.5, -5);
+	scene.add (cube4);//–åžy‰E
+	
+	cube5 = createMesh(new THREE.BoxGeometry(100, 2, 2), "wood.jpg", "wood-bump.jpg");
+	cube5.position.set (60, 6, -5);
+	scene.add (cube5);//–å?’ê
+	
+	cube6 = createMesh(new THREE.BoxGeometry(100, 2, 2), "wood.jpg", "wood-bump.jpg");
+
+	cube6.position.set (60, 159, -5);
+	scene.add (cube6);//–å?’ê
+	
+	cube7 = new THREE.Mesh (new THREE.BoxGeometry (1,7,1),
+							new THREE.MeshLambertMaterial ({color: 0x999999}));
+
+	cube7.position.set (110, 135, 0.5);
+	
+	scene.add (cube7);//ã–åð
+	
+	cube8 = new THREE.Mesh (new THREE.BoxGeometry (1,7,1),
+							new THREE.MeshLambertMaterial ({color: 0x999999}));
+
+	cube8.position.set (110, 35, 0.5);
+	scene.add (cube8);//‰º–åð
+	
+	var door = createMesh(new THREE.BoxGeometry(100, 155, 4), "wood.jpg", "wood-bump.jpg");
+
+	door.position.set (-50, -52.5, -2);
+	//door.position.set (60, 82.5, -2);
+	cube7.name = "door";
+	cube7.add (door);
+	//scene.add (door);
+	//door.add (cube7);
+	
+	var nearTexture = new THREE.ImageUtils.loadTexture( '../../images/hw2/metal.jpg' );
+	nearTexture.wrapS = nearTexture.wrapT = THREE.RepeatWrapping; 
+	nearTexture.repeat.set( 1, 1 );
+	var Material = new THREE.MeshBasicMaterial( { map: nearTexture, side: THREE.DoubleSide } );
+	
+	var cylinder =  new THREE . Mesh ( new THREE . CylinderGeometry (  2 ,  2 ,  5 ,  32  ) , new THREE.MeshLambertMaterial ({color: 0x999999}) );
+	cylinder.position.set(-95, -55, 0);
+	cylinder.rotation.x = Math.PI / 2;;
+	cube7.add (cylinder);
+	var cylinder2 =  new THREE . Mesh ( new THREE . CylinderGeometry (  4 ,  4 ,  5 ,  32  ) , new THREE.MeshLambertMaterial ({color: 0x999999}) );
+	cylinder2.position.set(-95, -55, 5);
+	cylinder2.rotation.x = Math.PI / 2;;
+	cube7.add (cylinder2);
+	
+	camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
+	camera.position.y = 160;
+	camera.position.z = 400;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+
+	controls = new THREE.OrbitControls (camera, renderer.domElement);
+	
+	// FLOOR
+	THREE.ImageUtils.crossOrigin = '';
+//	var floorTexture = THREE.ImageUtils.loadTexture( 'http://jyunming-chen.github.io/tutsplus/images/olympic.png' );
+	var floorTexture = new THREE.ImageUtils.loadTexture( 'images/olympic.png' );
+
+	floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
+	floorTexture.repeat.set( 4, 4 );
+	var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
+	
+	var floorGeometry = new THREE.PlaneGeometry(150, 150);//, 10, 10);  // not clear what segment does
+	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+	floor.position.y = -0.5;
+	floor.rotation.x = Math.PI / 2;
+   // scene.add(floor);
+
+	var gridXZ = new THREE.GridHelper(100, 10);
+	gridXZ.setColors( new THREE.Color(0xff0000), new THREE.Color(0xffffff) );
+	scene.add(gridXZ);
+
+	var pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (0,300,200);
+	scene.add (pointLight);
+		
+	
+	window.addEventListener ('resize', onWindowResize, false);
+	raycaster = new THREE.Raycaster();
+	document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+	
+	/*controls = new function () {
+            this.bumpScale = 0.2;
+
+            this.updateBump = function (e) {
+                console.log(sphere2.material.bumpScale);
+                sphere2.material.bumpScale = e;
+            }
+        };
+
+
+        var gui = new dat.GUI();
+        gui.add(controls, "bumpScale", 0, 1).onChange(controls.updateBump);*/
+}
+
+function onDocumentMouseDown( event ) {
+
+	// PICKING DETAILS: 
+	// convert mouse.xy = [-1,1]^2 (NDC)
+	// unproject (mouse.xy, 1) to a point on the far plane (in world coordinate)
+	// set raycaster (origin, direction)
+	// find intersection objects, (closest first) 
+	// each record as
+	// [ { distance, point, face, faceIndex, object }, ... ]
+
+	event.preventDefault();
+	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+	// find intersections
+	var vector = new THREE.Vector3( mouse.x, mouse.y, 1 ).unproject( camera );
+	raycaster.set( camera.position, vector.sub( camera.position ).normalize() );
+	var intersects = raycaster.intersectObjects( scene.children );
+	if ( intersects.length > 0 ) {
+		if (intersects[0].object.name === "door") 
+			door_move();
+	}
+	
+}
+
+function onWindowResize ()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function animate()
+{
+	if (door_state) {
+		if(door_state2 == 1){
+			angle += 0.1;
+			move.play();
+		}
+		else if(door_state2 == 2){
+			angle -= 0.1;
+			move.play();
+		}
+
+		if (angle > Math.PI/2) {
+			door_state2 = 2;
+			door_state = false;
+		}
+		else if(angle < 0.1){
+			door_state2 = 1;
+			door_state = false;
+			close.play();
+		}
+		if(angle < 0.2 && door_state2 == 1){
+			open.play();
+		}
+	}
+	
+	//door.rotation.y = angle;
+	cube7.rotation.y = angle;
+	keyboard.update();
+	if ( keyboard.down("Z"))
+		door_move();
+	
+	controls.update();
+	requestAnimationFrame ( animate );  
+	renderer.render (scene, camera);
+}
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	
+	var texture = THREE.ImageUtils.loadTexture("../../images/hw2/" + imageFile);
+	texture.wrapS = THREE.RepeatWrapping;
+	texture.wrapT = THREE.RepeatWrapping; 
+	texture.repeat.set( 1, 1 );
+	var mat = new THREE.MeshPhongMaterial({ map: texture, side: THREE.DoubleSide });
+	//mat.map = texture;
+	
+
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("../../images/hw2/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+
+
+</script>
+</body>
+
+</html>
