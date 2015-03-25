@@ -1,16 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
+<link rel=stylesheet type="css" href="hw2.css">
 <style>
-	canvas {
-		position: fixed;
-		top: 0;
-		left: 0;
+	body {
+		background-color: #fff;
+		color: #111;
+		margin: 0px;
+		overflow: hidden;
+		font-family: Monospace;
+		font-size: 20px;
+		position: absolute;
 	}
+	
 </style>
 </head>
 
 <body>
+<div id="info">
+	 press <strong>z</strong> to toggle the move<br/>
+	 or mouse touch the lock
+</div>
 <script src="../../js/three.min.js"></script>
 <script src="../../js/OrbitControls.js"></script>
 <script src="../../js/KeyboardState.js"></script>
@@ -103,7 +113,7 @@ function init()
 
 	door.position.set (-50, -52.5, -2);
 	//door.position.set (60, 82.5, -2);
-	cube7.name = "door";
+	//cube7.name = "door";
 	cube7.add (door);
 	//scene.add (door);
 	//door.add (cube7);
@@ -120,6 +130,7 @@ function init()
 	var cylinder2 =  new THREE . Mesh ( new THREE . CylinderGeometry (  4 ,  4 ,  5 ,  32  ) , new THREE.MeshLambertMaterial ({color: 0x999999}) );
 	cylinder2.position.set(-95, -55, 5);
 	cylinder2.rotation.x = Math.PI / 2;;
+	cylinder2.name = "lock";
 	cube7.add (cylinder2);
 	
 	camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
@@ -188,9 +199,9 @@ function onDocumentMouseDown( event ) {
 	// find intersections
 	var vector = new THREE.Vector3( mouse.x, mouse.y, 1 ).unproject( camera );
 	raycaster.set( camera.position, vector.sub( camera.position ).normalize() );
-	var intersects = raycaster.intersectObjects( scene.children );
+	var intersects = raycaster.intersectObjects( cube7.children );
 	if ( intersects.length > 0 ) {
-		if (intersects[0].object.name === "door") 
+		if (intersects[0].object.name === "lock") 
 			door_move();
 	}
 	
