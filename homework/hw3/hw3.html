@@ -62,7 +62,7 @@ var toycar;
 
 // state variables of toycar
 var pos = new THREE.Vector3(0,0,0), angle = 0;
-var speed = 5, rotspeed = 0;
+var speed = 0, rotspeed = 0;
 
 var speedR = 0, speedL = 0;
 
@@ -122,6 +122,11 @@ function init()
     var vertexShader = document.getElementById('vertexShaderDepth').textContent;
     var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
     mesh.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	mesh0.customDepthMaterial = new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
@@ -209,7 +214,7 @@ function animate()
 	
 	var number = Math.sqrt(dir.x * dir.x + dir.z * dir.z) / (40 * Math.PI);
 	tire.rotation.x -= number * 2* Math.PI;
-	console.log ("L: " + dir.x + "; R: " + number);
+	
 	
 	
 	requestAnimationFrame ( animate ); 
@@ -223,34 +228,27 @@ function myclamp(x,lo,hi)
 	if (x > hi) return hi;
 	return x;
 }
-
+		
 function update()
 {
 	controls.update();
 	keyboard.update();         
 
-	if ( keyboard.pressed("left") ) 
-		speedL += 0.5; 
+	if ( keyboard.pressed("left") )
+		angle += 0.08;
 	if ( keyboard.pressed("right") )
-		speedR += 0.5;
+		angle -= 0.08;
+	
 	if ( keyboard.pressed("up") ){
-		//speed += 1.5;
-		speedR += 0.5;
-		speedL += 0.5;
+		speed += 0.3;
+	}
+	else{
+		speed -= 0.3;
 	}
 
-	// viscous drag
-	speedL *= 0.95;
-	speedR *= 0.95;
-
-	//console.log ("L: " + speedL + "; R: " + speedR);
+	//console.log ("L: " + speed + "; R: " + speedR);
 	
-	// no backtrack yet
-	speedL = myclamp (speedL, 0, 20);
-	speedR = myclamp (speedR, 0, 20);
-	
-	speed = (speedL+speedR)/2;
-	rotspeed = (speedL - speedR)/10;
+	speed = myclamp (speed, 0, 50);
 }
 
 function render()
