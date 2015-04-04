@@ -266,7 +266,7 @@ function createMesh(geom, imageFile, bump)
 	if (bump) {
 		var bump = THREE.ImageUtils.loadTexture("../../images/hw2/" + bump)
 		mat.bumpMap = bump;
-		mat.bumpScale = 0.2;
+		mat.bumpScale = 0.8;
 	}
 
 	var mesh = new THREE.Mesh(geom, mat);
