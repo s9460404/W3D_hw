@@ -15,6 +15,44 @@
 <script src="../../js/three.min.js"></script>
 <script src="../../js/OrbitControls.js"></script>
 <script src="../../js/KeyboardState.js"></script>
+<script src="../../js/dat.gui.min.js"></script>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+
+    vec4 pack_depth(const in float depth) {
+
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
 <script>
 
 var clock = new THREE.Clock();
@@ -22,18 +60,65 @@ var scene, renderer, camera;
 var controls, keyboard = new KeyboardState();
 var sign = 1;
 var toycar;
-var tire, tireR;
+var pa = new THREE.Vector3(0, 0, -20);
+var pb = new THREE.Vector3(0, 0, 20);
+var pc = new THREE.Vector3(0,0,0);
+var sa = -4;
+var sb = 4;
+var k = 0;
 // state variables of toycar
 var pos = new THREE.Vector3(0,0,0), angle = 0;
-var speed = 5, rotspeed = 0;
-
+var speed = 0, rotspeed = 0;
+var gcontrols;
 var speedR = 0, speedL = 0;
-
+var jsonModel;
+var pilot;
+var xangle = 0;
+var zangle = 0;
+var sceneHUD, cameraHUD;
+var barA, barB;
+var armrest;
+var grip, grip2, grip3;
 init();
 animate();
 
+function initHUD() {
+    sceneHUD = new THREE.Scene();
+    cameraHUD = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraHUD.position.z = 5;
+    cameraHUD.lookAt(new THREE.Vector3(0, 0, 0));
+
+    barA = new THREE.Object3D();
+    powerA = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0xff1233,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerA.position.set(-2, 2, 0);
+    barA.add(powerA);
+    sceneHUD.add(barA);
+
+    barB = new THREE.Object3D();
+    powerB = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0x2212ff,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerB.position.set(2, 2, 0);
+    barB.add(powerB);
+    sceneHUD.add(barB);
+}
 function init()
 {
+	initHUD();
+	scene = new THREE.Scene();
+	pilot = new THREE.Object3D();
+    //scene.add(pilot);
+	
     window.focus();
 	var width = window.innerWidth;
 	var height = window.innerHeight;
@@ -41,9 +126,8 @@ function init()
 	renderer = new THREE.WebGLRenderer({antialias: true});
 	renderer.setSize (width, height);
 	document.body.appendChild (renderer.domElement);
-
-	scene = new THREE.Scene();
-
+	renderer.autoClear = false;
+	
 	camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
 	camera.position.y = 160;
 	camera.position.z = 400;
@@ -52,70 +136,334 @@ function init()
 
 	// toycar with only two wheels
 	toycar = new THREE.Object3D();
-	scene.add (toycar);
 	
-	var cubeGeometry = new THREE.CylinderGeometry (20,20,3);
-	var cubeMaterial = new THREE.MeshLambertMaterial ({color: 0x1ec876});
-	tire = new THREE.Mesh (cubeGeometry, cubeMaterial); // tireL
-    tire.rotation.order = 'ZYX';
-    tire.rotation.z = Math.PI/2;
+	
+	THREE.ImageUtils.crossOrigin = '';
+    var colormap = THREE.ImageUtils.loadTexture('http://s9460404.github.io/W3D_hw/images/hw3/tire_side.png');
+	
+	tire = new THREE.Object3D();
+	
+	var geometry = new THREE.CircleGeometry(20, 20);
+    var material = new THREE.MeshBasicMaterial({
+        map: colormap,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+    var mesh = new THREE.Mesh(geometry, material);
+
+	var mesh2 = createMesh(new THREE.CylinderGeometry(20, 20, 6, 30, 1, true, 0, 2*Math.PI), "tire.jpg", "tire_bump.jpg");
+    mesh2.rotation.z = Math.PI / 2;
+	mesh2.position.set(0, 0, 0);
+	mesh.rotation.y = Math.PI / 2;
+	mesh.position.set(3, 0, 0);
+    mesh0 = mesh.clone();
+    mesh0.position.set(-3, 0, 0);
+    mesh0.rotation.y = Math.PI * 3 / 2;
+    
+    var mesh3 = new THREE.Mesh(geometry, material);
+
+	var mesh4 = createMesh(new THREE.CylinderGeometry(20, 20, 6, 30, 1, true, 0, 2*Math.PI), "tire.jpg", "tire_bump.jpg");
+    mesh4.rotation.z = Math.PI / 2;
+	mesh4.position.set(0, 0, 0);
+	mesh3.rotation.y = Math.PI / 2;
+	mesh3.position.set(3, 0, 0);
+    mesh5 = mesh.clone();
+    mesh5.position.set(-3, 0, 0);
+    mesh5.rotation.y = Math.PI * 3 / 2;
+    
+    
+	var uniforms = {
+        texture: {
+            type: "t",
+            value: colormap
+        }
+    };
+    var vertexShader = document.getElementById('vertexShaderDepth').textContent;
+    var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
+    mesh.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	mesh0.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+    mesh3.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	mesh5.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+    
 	tireR = tire.clone();
-    tire.position.set (-15,0,0);
-    tireR.position.set (+15,0,0); 
-    toycar.add (tire);
-	toycar.add (tireR);
+	tire.add (mesh);
+    tire.add(mesh0);
+    tire.add(mesh2);
+    tireR.add (mesh3);
+    tireR.add(mesh5);
+    tireR.add(mesh4);
+ 
+    tire.position.set (-20,0,0);
+    tireR.position.set (+20,0,0); 
+	toycar.add (tire);
+    toycar.add (tireR);
+
+    geometry = new THREE.BoxGeometry( 34, 3, 40 );
+    material = new THREE.MeshBasicMaterial( {color: 0x555555} );
+    var pedals = new THREE.Mesh( geometry, material );
+    toycar.add( pedals );
+    
+	var Texture = new THREE.ImageUtils.loadTexture( '../../images/hw4/metal.jpg' );
+
+	Texture.wrapS = Texture.wrapT = THREE.RepeatWrapping; 
+	Texture.repeat.set( 1, 1 );
+	var Material = new THREE.MeshBasicMaterial( { map: Texture, side: THREE.DoubleSide } );
+	
+    geometry = new THREE.CylinderGeometry( 7, 7, 3, 32, 1, false, 0, Math.PI/2 );
+    material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    var cylinder = new THREE.Mesh( geometry, Material );
+    cylinder.rotation.z = Math.PI /2;
+    cylinder.position.set(0, 0, 13);
+    toycar.add( cylinder );
+    
+    geometry = new THREE.BoxGeometry( 4, 70, 4 );
+    material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+    armrest = new THREE.Mesh( geometry, Material );
+    armrest.position.set(0, 35, 11);
+    toycar.add( armrest );
+    
+    geometry = new THREE.BoxGeometry( 40, 2, 4 );
+    material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+    grip = new THREE.Mesh( geometry, Material );
+    grip.position.set(0, 70, 11);
+    toycar.add( grip );
+    
+    geometry = new THREE.BoxGeometry( 2, 2, 20 );
+    material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+    grip2 = new THREE.Mesh( geometry, Material );
+    grip2.position.set(21, 70, 3);
+    toycar.add( grip2 );
+    
+    geometry = new THREE.BoxGeometry( 2, 2, 20 );
+    material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+    grip3 = new THREE.Mesh( geometry, Material );
+    grip3.position.set(-21, 70, 3);
+    toycar.add( grip3 );
+    
+	scene.add (toycar);
 	
 	// add control here (after the camera is defined)
 	controls = new THREE.OrbitControls (camera, renderer.domElement);
 
-	var gridXZ = new THREE.GridHelper(100, 10);
-	gridXZ.setColors( new THREE.Color(0xff0000), new THREE.Color(0xffffff) );
-	scene.add(gridXZ);
+	spotLight = new THREE.SpotLight(0xffffff, 1.3);
+    spotLight.position.set(0, 300, 0);
+    spotLight.angle = Math.PI / 3;
 
-	var pointLight = new THREE.PointLight (0xffffff);
-	pointLight.position.set (0,300,200);
-	scene.add (pointLight);
+    spotLight.castShadow = true;
 
+    spotLight.shadowMapWidth = 1024;
+    spotLight.shadowMapHeight = 1024;
+
+    spotLight.shadowCameraNear = 5;
+    spotLight.shadowCameraFar = 4000;
+    spotLight.shadowCameraFov = spotLight.angle / Math.PI * 180;
+
+    spotLight.exponent = 20;
+    spotLight.target = pedals;
+    scene.add(spotLight);
+
+    var spotball = new THREE.Mesh(new THREE.SphereGeometry(5),
+    new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        wireframe: true
+    }));
+    spotball.position.copy(spotLight.position);
+    scene.add(spotball);
+
+    var ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400, 130, 130),
+    new THREE.MeshLambertMaterial());
+	ground.position.set(0, -16, 0);
+    ground.rotation.x = -Math.PI / 2;
+	
+    scene.add(ground);
+	
+	pointA = new THREE.Mesh(new THREE.SphereGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xff0000
+    }));
+    pointB = new THREE.Mesh(new THREE.SphereGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0x0000ff
+    }));
+    pointC = new THREE.Mesh(new THREE.SphereGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00
+    }));
+	
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    pointC.position.copy(pc);
+    scene.add(pointA);
+    scene.add(pointB);
+    scene.add(pointC);
+	
+
+	topCamera = new THREE.OrthographicCamera (-110,110,110,-110, 10, 2000);
+	
+	topCamera.position.set (0,450,0);
+	topCamera.up.set (0,0,-1);
+	topCamera.lookAt (new THREE.Vector3(0,0,0));
+	
+    ground.receiveShadow = true;
+    mesh.castShadow = true;
+	mesh0.castShadow = true;
+	mesh2.castShadow = true;
+    mesh3.castShadow = true;
+	mesh4.castShadow = true;
+	mesh5.castShadow = true;
+    pedals.castShadow = true;
+    cylinder.castShadow = true;
+    armrest.castShadow = true;
+    grip.castShadow = true;
+    grip2.castShadow = true;
+    grip3.castShadow = true;
+    
+	renderer.setClearColor (0x888888);
+	renderer.shadowMapEnabled = true;
+    renderer.shadowMapType = THREE.PCFShadowMap;
+
+	var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("http://jyunming-chen.github.io/tutsplus/models/android.json", addModelToScene);
+	toycar.add(pilot);
 	var ambientLight = new THREE.AmbientLight (0x111111);
 	scene.add(ambientLight);
+	
+	
 	window.addEventListener ('resize', onWindowResize, false);
 }
-
+function addModelToScene(geometry, materials) {
+    var material = new THREE.MeshFaceMaterial(materials);
+    jsonModel = new THREE.Mesh(geometry, material);
+    jsonModel.scale.set(4, 4, 4);
+    //jsonModel.rotation.y = Math.PI; // default: back face +z
+	jsonModel.position.set(0, 0, -5);
+    pilot.add(jsonModel);
+}
 function onWindowResize ()
 {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize (window.innerWidth, window.innerHeight);
 }
+var dir;
+function test()
+{
+	if (keyboard.pressed("up")) { // move forward
+        xangle -= 0.01;
+    }
+    if (keyboard.pressed("down")) { // move backward
+        xangle += 0.01;
+    }
+    if (keyboard.pressed("left")) { // left turn
+        zangle -= 0.005;
+    }
+    if (keyboard.pressed("right")) { // right turn
+        zangle += 0.005;
+    }
+    if (keyboard.pressed("space")) { // pause
+        zangle = xangle = 0;
+    }
 
+    xangle = myclamp(xangle, -0.2, 0.1);
+    zangle = myclamp(zangle, -0.1, 0.1);
+
+    // console.log (xangle + ", " + zangle);
+
+    pilot.rotation.x = -xangle;
+    pilot.rotation.z = zangle;
+	
+    // compute Sa and Sb
+    var forward = -xangle * 10;
+    var small = forward * (1 - Math.abs(zangle) / 0.1 * 1.8);
+    if (zangle > 0) {
+        sa = small;
+        sb = forward;
+    } else {
+        sa = forward;
+        sb = small;
+    }
+
+    barA.scale.copy(new THREE.Vector3(1, Math.abs(sa), 1));
+    barB.scale.copy(new THREE.Vector3(1, Math.abs(sb), 1));
+
+    var xxa, xxb;
+
+    if (sa < 0) {
+        xxa = Math.PI;
+        barA.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxa = 0;
+        barA.children[0].material.color = new THREE.Color(0xff0000);
+    }
+    barA.rotation.x = xxa;
+
+    if (sb < 0) {
+        xxb = Math.PI;
+        barB.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxb = 0;
+        barB.children[0].material.color = new THREE.Color(0x0000ff);
+    }
+    barB.rotation.x = xxb;
+}
 function animate()
 {
-	var dt = clock.getDelta();
+	controls.update();
+	//sa = gcontrols.sa;
+	//sb = gcontrols.sb;
 	
-	var dir = new THREE.Vector3(1,0,0);
-    var vel = 10;
-	angle += rotspeed*dt;
-    
-    /*if (toycar.position.z > 50 || toycar.position.z < -50) sign *= -1;
-    toycar.position.z += sign*speed*dt;*/
-   // toycar.rotation.y -= speed*dt/10*sign;
+	test();
+	var dt = 0.05;
+	
+	dir = new THREE.Vector3(1,0,0);
+	dir2 = new THREE.Vector3(1,0,0);
 
     if (toycar != undefined) { 
-		toycar.scale.set (0.2,0.2,0.2);
-		toycar.position.set (pos.x, pos.y, pos.z);
-		toycar.rotation.y = angle+Math.PI/2;
-        tire.rotation.x -= vel*dt/10*sign;
+		toycar.scale.set (0.8,0.8,0.8);
 	}    
-	//dir.multiplyScalar (dt*speed);
-	//dir.applyAxisAngle (new THREE.Vector3(0,1,0), angle);
-	dir.multiplyScalar (dt*speed).applyAxisAngle (new THREE.Vector3(0,1,0), angle);
-    //toycar.rotation.z -= vel*dt/10*sign;
-	pos.add (dir); 	
+
+	keyboard.update();
 	
+	update(dt);
+
+    var tmp = new THREE.Vector3();
+    tmp.copy(pa);
+    tmp.add(pb).multiplyScalar(0.5); // (pa+pb)/2
+    toycar.position.copy(tmp);
+    tmp.copy(pa);
+    tmp.sub(pb); // pa - pb;
+    var angle2 = Math.atan2(tmp.x, tmp.z) - Math.PI / 2;
+    //console.log(angle2);
+    toycar.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle2);
+	console.log ("sa: " + sa + "; sb: " + sb);
+    requestAnimationFrame(animate);
+    
 	
+	dir.multiplyScalar (dt*sa).applyAxisAngle (new THREE.Vector3(0,1,0), angle2);
+	dir2.multiplyScalar (dt*sa).applyAxisAngle (new THREE.Vector3(0,1,0), angle2);
 	
-	requestAnimationFrame ( animate ); 
-	update();
+	var number = Math.sqrt(dir.x * dir.x + dir.z * dir.z) / (40 * Math.PI);
+	var number2 = Math.sqrt(dir2.x * dir2.x + dir2.z * dir2.z) / (40 * Math.PI);
+	tire.rotation.x += number * 2* Math.PI;
+	tireR.rotation.x += number2 * 2* Math.PI;
+	
 	render(); 
 }
 
@@ -125,47 +473,95 @@ function myclamp(x,lo,hi)
 	if (x > hi) return hi;
 	return x;
 }
+		
+function update(dt) {
 
-function update()
-{
 	controls.update();
-	keyboard.update();         
-/*
-	if ( keyboard.pressed("left") ) 
-		rotspeed += 0.01; //angle += 0.01;               
-	if ( keyboard.pressed("right") )
-		rotspeed -= 0.01; // angle -= 0.01;               
-	if ( keyboard.pressed("up") )  
-		speed += 0.5;        
-	if ( keyboard.pressed("down") )  
-		speed -= 0.5;    
+	keyboard.update(); 
+    var center = new THREE.Vector3();
+    var tmp = new THREE.Vector3();
+    var l = tmp.subVectors(pa, pb).length();
 
-	speed = myclamp (speed, 0.0, 20.0);		
-	rotspeed = myclamp (rotspeed, -2, 2);
+    k = l * sa / (sb - sa);
+    var omega = (sb - sa) / l;
+    //if (omega === 0.0) {
+    if (Math.abs(sa-sb) < 1e-5) {    // this gives better result (no jerk)
+    tmp.subVectors(pa, pb).normalize().cross(new THREE.Vector3(0, 1, 0)).multiplyScalar(sa * dt);
+        pa.add(tmp);
+        pb.add(tmp);
+        pointA.position.copy(pa);
+        pointB.position.copy(pb);
+        return; // do a pure translation then return
+    }
 
-*/
-	if ( keyboard.pressed("left") ) 
-		speedL += 0.5; 
-	if ( keyboard.pressed("right") )
-		speedR += 0.5;
+    tmp.subVectors(pa, pb).normalize().multiplyScalar(k);
+    center.copy(tmp.add(pa));
 
-	// viscous drag
-	speedL *= 0.95;
-	speedR *= 0.95;
+    tmp.subVectors(pa, center)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt)
+        .add(center);
+    pa.copy(tmp);
 
-	console.log ("L: " + speedL + "; R: " + speedR);
-	
-	// no backtrack yet
-	speedL = myclamp (speedL, 0, 20);
-	speedR = myclamp (speedR, 0, 20);
-	
-	speed = (speedL+speedR)/2;
-	rotspeed = (speedL - speedR)/10;
+    tmp.subVectors(pb, center)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt)
+        .add(center);
+    pb.copy(tmp);
+
+    // normalize ...
+    //tmp.subVectors (pb,pa).normalize().multiplyScalar(l);
+    //pb.addVectors(tmp,pa);
+    
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    pointC.position.copy (center);
 }
-
 function render()
 {
+	/*var SCREEN_W, SCREEN_H;
+	SCREEN_W = window.innerWidth;
+	SCREEN_H = window.innerHeight;
+
+	var left,bottom,width,height;
+
+	left = 1; bottom = 1; width = 0.5*SCREEN_W-2; height = SCREEN_H-2;
+	renderer.setViewport (left,bottom,width,height);
+	renderer.setScissor(left,bottom,width,height);
+	renderer.enableScissorTest (true);
+	topCamera.aspect = width/height;
+	topCamera.updateProjectionMatrix();
+	renderer.render (scene,topCamera);
+
+	left = 0.5*SCREEN_W+1; bottom = 1; width = 0.5*SCREEN_W-2; height = SCREEN_H-2;
+	renderer.setViewport (left,bottom,width,height);
+	renderer.setScissor(left,bottom,width,height);
+	renderer.enableScissorTest (true);  // clip out "viewport"
+	camera.aspect = width/height;
+	camera.updateProjectionMatrix();
+	renderer.render (scene,camera);*/
 	renderer.render (scene, camera);
+	renderer.render(sceneHUD, cameraHUD);
+}
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	
+	var texture = THREE.ImageUtils.loadTexture("http://s9460404.github.io/W3D_hw/images/hw3/" + imageFile);
+	texture.wrapS = THREE.RepeatWrapping;
+	texture.wrapT = THREE.RepeatWrapping; 
+	texture.repeat.set( 1, 1 );
+	var mat = new THREE.MeshPhongMaterial({ map: texture, side: THREE.DoubleSide });
+	//mat.map = texture;
+	
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("http://s9460404.github.io/W3D_hw/images/hw3/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
 }
 
 </script>
