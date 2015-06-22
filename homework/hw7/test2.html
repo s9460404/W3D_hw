@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+
+body {
+    overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+<script src="http://mrdoob.github.com/three.js/build/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
+</script>
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    uniform float time;
+    varying vec2 vUv;
+    
+    float rand(vec2 co) {
+        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main(void) {
+        // Divide the coordinates into a grid of squares
+    vec2 v = vUv*10.0; //gl_FragCoord.xy / 20.0;
+        // Calculate a pseudo-random brightness value for each square
+        vec3 brightness = vec3(fract(rand(floor(v)) + time), fract(rand(floor(v)) + time / 3.), fract(rand(floor(v)) + time / 5.));
+        // Reduce brightness in pixels away from the square center
+        brightness *= 0.5 - length(fract(v) - vec2(0.5, 0.5));
+        gl_FragColor = vec4(brightness.r * 4.0, brightness.g * brightness.b * 2., brightness.b - brightness.r + 0.2, 1.0);
+    }
+</script>
+
+<script>
+//////////////////////////////////
+/// from
+/// http://www.smartjava.org/ltjs/chapter-09/15-animation-from-md2.html
+////////////////////////////////////////////////////////////////////////////
+
+var camera, scene, renderer;
+var clock = new THREE.Clock();
+var meshMaterial;
+var controls;
+
+init();
+animate();
+
+function init() {
+    
+    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 3000);
+    camera.position.z = 500;
+
+/*
+    // orthographic camera (for full-screen plane)
+    camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -500, 500);
+    camera.position.z = 300;
+*/
+    var geometry = new THREE.PlaneGeometry(200, 200);
+
+    meshMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            time: {
+                type: 'f',
+                value: 1.0
+            }
+        },
+        vertexShader: document.getElementById('vertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShader').textContent
+    });
+
+    var mesh = new THREE.Mesh(geometry, meshMaterial);
+
+    scene = new THREE.Scene();
+    scene.add(mesh);
+
+    
+    renderer = new THREE.WebGLRenderer();
+    renderer.setClearColor (0x888888);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    window.addEventListener('resize', onWindowResize, false);
+    
+    controls = new THREE.OrbitControls (camera, renderer.domElement);
+}
+
+function onWindowResize(event) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+    controls.update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    var delta = clock.getDelta();
+
+    meshMaterial.uniforms.time.value += delta * 2;
+    renderer.render(scene, camera);
+}
+
+</script>
+</body>
+
+</html>
