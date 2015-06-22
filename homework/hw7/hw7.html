@@ -1,0 +1,464 @@
+
+<!DOCTYPE html>
+<html>
+ <head> 
+  <title>MD2 Animation</title> 
+<style>
+	#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+}
+#container {
+    width:40%;
+    float:left;
+    background-color:pink;
+   margin-top: 5px;
+}
+#cnvsFrame {
+    height: 0;
+    padding-bottom:100%;
+}
+.fl {
+    float:left;
+    margin:20px;
+}
+.flc {
+    float:right;
+    margin:5px;
+    width:30%;
+}
+body {
+    overflow: hidden;
+}
+</style>
+</head> 
+
+ <body> 
+<script src="http://mrdoob.github.com/three.js/build/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
+</script>
+<h1> Lipsum Generator </h1>
+Ref: <a href="https://css-tricks.com/video-screencasts/42-all-about-floats-screencast/">Screen cast about floats</a>
+<hr>
+<div id="container">
+<div id="cnvsFrame">
+    <canvas id="cnvs"></canvas>
+</div>
+</div>
+<div id="init">User Name:
+    <input id="user" type="text" value="Mickey"></input>
+    <button id="bttn" class="buttonClass" onclick="javascript:setValueBtn()">Login</button>
+    <p id='greeting'></p>
+    </div>
+
+<button id="printLog">Print log</button>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    uniform float time;
+    varying vec2 vUv;
+    
+    float rand(vec2 co) {
+        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main(void) {
+        // Divide the coordinates into a grid of squares
+    vec2 v = vUv*10.0; //gl_FragCoord.xy / 20.0;
+        // Calculate a pseudo-random brightness value for each square
+        vec3 brightness = vec3(fract(rand(floor(v)) + time), fract(rand(floor(v)) + time / 3.), fract(rand(floor(v)) + time / 5.));
+        // Reduce brightness in pixels away from the square center
+        brightness *= 0.5 - length(fract(v) - vec2(0.5, 0.5));
+        gl_FragColor = vec4(brightness.r * 4.0, brightness.g * brightness.b * 2., brightness.b - brightness.r + 0.2, 1.0);
+    }
+</script>
+
+
+
+
+<script>
+//////////////////////////////////
+/// from
+/// http://www.smartjava.org/ltjs/chapter-09/15-animation-from-md2.html
+////////////////////////////////////////////////////////////////////////////
+
+var camera, scene, renderer, geometry, material, mesh, controls, number = 0;
+var pos, vel;
+var clock = new THREE.Clock();
+var puck = [];
+var mouse = new THREE.Vector2();
+var records = [];
+var puckgroup, side, second = 0, name, kind = 0;
+var number = 1, sub = 0, range, state = 0, lose = 0, ww, hh,test = 0;
+var Puck = function () {
+    this.pos = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+    this.coll = new THREE.Vector3();
+    this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 2, 20),
+    new THREE.ShaderMaterial({
+        uniforms: {
+            time: {
+                type: 'f',
+                value: 1.0
+            }
+        },
+        vertexShader: document.getElementById('vertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShader').textContent
+    }));
+};
+Puck.prototype.update = function (dt){
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+    this.mesh.position.copy(this.pos);
+};
+Puck.prototype.collision = function () {
+    if (this.pos.x > 100) {
+        this.pos.x = 100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+    } else if (this.pos.x < -100) {
+        this.pos.x = -100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+    }
+    if (this.pos.z > 100) {
+        this.pos.z = 100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        if(this.pos.x < range && this.pos.x > -range){
+            if( this.pos.x > (side + 15) || this.pos.x < (side -15)){
+                
+                this.coll.x = 1;
+                
+            }
+            //alert("das");
+        }
+    } else if (this.pos.z < -100) {
+        this.pos.z = -100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        if(this.pos.x < range && this.pos.x > -range){
+            if( this.pos.x > (side + 15) || this.pos.x < (side -15)){
+                
+                this.coll.x = 1;
+                
+            }
+            //alert("das");
+        }
+    }
+};
+init();
+animate();
+
+function init() {
+    var theCanvas = document.getElementById("cnvs");
+    var theCanvasFrame = document.getElementById("cnvsFrame");
+
+    renderer = new THREE.WebGLRenderer({
+        canvas: theCanvas,
+        antialias: true
+    });
+    ww = theCanvasFrame.clientWidth;
+    hh = theCanvasFrame.clientHeight;
+    
+    renderer.setSize(ww, hh);
+    renderer.setClearColor(0x222222);
+    
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, ww/hh, 1, 1000);
+    camera.position.z = 150;
+    camera.position.y = 300;
+    scene.add(camera);
+
+    geometry = new THREE.BoxGeometry(220, 30, 10);
+    material = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xff2387,
+        opacity: 0.4
+    });
+    
+    geometry2 = new THREE.BoxGeometry(110, 30, 10);
+    material2 = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xff2387,
+        opacity: 0.4
+    });
+    
+    geometry3 = new THREE.BoxGeometry(30, 30, 10);
+    material3 = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xffff87,
+        opacity: 0.4
+    });
+    
+    mesh9 = new THREE.Mesh(geometry3, material3);
+    mesh9.position.set(0, 15, -105);
+    scene.add(mesh9);
+    
+    mesh10 = new THREE.Mesh(geometry3, material3);
+    mesh10.position.set(0, 15, 105);
+    scene.add(mesh10);
+    
+    mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 15, 105);
+    //scene.add(mesh);
+    mesh2 = mesh.clone();
+    mesh2.position.set(0, 15, -105);
+    //scene.add(mesh2);
+    mesh3 = mesh.clone();
+    mesh3.rotation.y = Math.PI / 2;
+    mesh3.position.set(105, 15, 0);
+    scene.add(mesh3);
+    mesh4 = mesh.clone();
+    mesh4.rotation.y = Math.PI / 2;
+    mesh4.position.set(-105, 15, 0);
+    scene.add(mesh4);
+
+    
+     mesh5 = new THREE.Mesh(geometry2, material2);
+    mesh5.position.set(55, 15, 105);
+    scene.add(mesh5);
+    mesh6 = new THREE.Mesh(geometry2, material2);
+    mesh6.position.set(-55, 15, 105);
+    scene.add(mesh6);
+    
+    mesh7 = new THREE.Mesh(geometry2, material2);
+    mesh7.position.set(55, 15, -105);
+    scene.add(mesh7);
+    mesh8 = new THREE.Mesh(geometry2, material2);
+    mesh8.position.set(-55, 15, -105);
+    scene.add(mesh8);
+    
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    scene.add(gridXZ);
+
+    
+    /*puck[number] = new Puck();
+    puck[number].pos = new THREE.Vector3(0, 1, 0);
+    //puck[number].vel = new THREE.Vector3(50, 0, 70);
+    puck[number].vel = new THREE.Vector3(150*(Math.random()*2-1), 0, 170*(Math.random()*2-1));
+    scene.add(puck[number].mesh);*/
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    document.addEventListener('mousemove', onDocumentMouseMove, false);
+  
+    /*records.push({
+        name: "Adam",
+        score: 50
+    });
+    records.push({
+        name: "Brian",
+        score: 53
+    });
+
+    var objStr = JSON.stringify(records);
+    localStorage.setItem("scores", objStr);*/
+}
+function alertFunc() {
+    number++;
+    puck[number] = new Puck();
+    puck[number].pos = new THREE.Vector3(0, 1, 0);
+    puck[number].coll = new THREE.Vector3(0, 0, 0);
+    puck[number].vel = new THREE.Vector3(150*(Math.random()*2-1), 0, 170*(Math.random()*2-1));
+
+    scene.add(puck[number].mesh);
+    number++;
+   
+    if(state != 2)
+        setTimeout(alertFunc, 3000);
+}
+function alertFunc2() {
+   sub += 0.05;
+    if( (1 - sub) > 0 ){
+        
+        mesh5.scale.set(1 - sub , 1 , 1);
+        mesh6.scale.set(1 - sub , 1 , 1);
+        mesh5.position.set(55 * ( 1 + sub), 15, 105 );
+        mesh6.position.set(-55 * (1 + sub), 15, 105 );
+        mesh7.scale.set(1 - sub , 1 , 1);
+        mesh8.scale.set(1 - sub , 1 , 1);
+        mesh7.position.set(55 * ( 1 + sub), 15, -105 );
+        mesh8.position.set(-55 * (1 + sub), 15, -105 );
+        //alert(110 -(110 * (1 - sub)));
+        range = 110 -(110 * (1 - sub));
+    }
+    
+            //alert(110 * (1 - sub));
+       //alert(lose);
+    if(state != 2)
+        setTimeout(alertFunc2, 5000);
+}
+function alertFunc3() {
+    second++;
+    
+    puck.forEach(function (puck) {
+       
+        if(puck.coll.x == 1){
+            puck.coll.x = 0;         
+            scene.remove(puck.mesh);
+            lose++;
+            
+            alert("test:" + lose);
+            if(lose == 5){
+                state = 2;
+                alert("game over \n score: " + second);
+            }
+            
+        }
+          
+    });
+    
+    
+    setTimeout(alertFunc3, 1000);
+}
+function animate() {
+    var dt = clock.getDelta();
+
+    puck.forEach(function (puck) {
+        
+        puck.update(dt);
+        puck.collision();
+        
+        if(puck.coll.x == 1){
+            puck.coll.x = 0;         
+            scene.remove(puck.mesh);
+            lose++;
+            
+            //alert("test:" + lose);
+            if(lose == 5){
+                state = 2;
+                alert("score: " + second);
+                final();
+            }
+            
+        }
+    
+          
+    });
+
+
+    controls.update();
+
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+
+
+/*$("#bttn").click(function () {
+        name = document.getElementById('user').value;
+    alert(name + " is playing");
+
+    var result = searchUser(name);
+    if (result >= 0) {
+        document.getElementById('greeting').innerHTML = "Your high score: " + result;
+    } else {
+        document.getElementById('greeting').innerHTML = "Welcome!";
+    }
+    setTimeout(alertFunc, 1000);
+    setTimeout(alertFunc2, 5000);
+    setTimeout(alertFunc3, 1000);
+    state = 1;
+});*/
+
+function searchUser(name) {
+    for (var i = 0; i < records.length; i++) {
+        if (records[i].name === name) {
+            return records[i].score;
+            kind = 1;
+        }
+        else
+            kind = 0;
+    }
+    return -1;
+}
+$("#printLog").click(function () {
+    //$("#init").toggle();
+    // document.getElementById("init").hide();
+
+    var objStr = localStorage.getItem("scores");
+    var record_new = JSON.parse(objStr);
+
+    for (var i = 0; i < record_new.length; i++)
+    alert(record_new[i].name + ": " + record_new[i].score);
+});
+function final(){
+    var objStr = localStorage.getItem("scores");
+    var record_new = JSON.parse(objStr);
+    for (var i = 0; i < record_new.length; i++){
+        //alert(record_new[i].name + ": " + record_new[i].score);
+        records = record_new;
+    }
+    
+    /*records.push({
+            name: document.getElementById('user').value,
+            score: second
+        });
+    objStr = JSON.stringify(records);
+    localStorage.setItem("scores", objStr);*/
+    
+    if(kind == 1){
+    for (var i = 0; i < record_new.length; i++){
+        alert(record_new[i].name + ": " + record_new[i].score);
+        if(record_new[i].name === document.getElementById('user').value){    if(second > record_new[i].score){
+            records.push({
+        name: document.getElementById('user').value,
+        score: second
+    });
+
+    
+        }
+        }
+    }
+    }
+    if(kind == 0){
+            records.push({
+            name: document.getElementById('user').value,
+            score: second
+        });
+    }
+    objStr = JSON.stringify(records);
+    localStorage.setItem("scores", objStr);
+}
+function onDocumentMouseMove(event) {
+    event.preventDefault();
+    mouse.x = (event.clientX / ww) * 2 - 1;
+    mouse.y = -(event.clientY / hh) * 2 + 1;
+	console.log(mouse.x + " , " + mouse.y);
+    
+	mesh9.position.set(mouse.x * 110, 15, -105);
+    mesh10.position.set(mouse.x * 110, 15, 105);
+    side = mouse.x * 110;
+    
+    if(mouse.x * 110 > 95){
+        mesh9.position.set(95, 15, -105);
+        mesh10.position.set(95, 15, 105);
+        side = 95;
+    }
+    if(mouse.x * 110 < -95){
+        mesh9.position.set(-95, 15, -105);
+        mesh10.position.set(-95, 15, 105);
+        side = -95;
+    }
+}
+function setValueBtn() {
+var objStr = localStorage.getItem("scores");
+    var record_new = JSON.parse(objStr);
+
+    for (var i = 0; i < record_new.length; i++)
+    alert(record_new[i].name + ": " + record_new[i].score);
+}
+</script>  
+ </body>
+</html>
